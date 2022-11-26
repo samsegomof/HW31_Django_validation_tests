@@ -1,9 +1,8 @@
-from django.db.models.fields import related
-from dulwich import objects
 from rest_framework import serializers
 from rest_framework.generics import get_object_or_404
 
 from ads.models import Ad, Category, Selection
+from ads.validators import is_published_validator
 from users.models import User, Location
 
 
@@ -37,6 +36,7 @@ class AdSerializer(serializers.ModelSerializer):
 
 
 class AdCreateSerializer(serializers.ModelSerializer):
+    is_published = serializers.BooleanField(validators=[is_published_validator], default=None)
     id = serializers.IntegerField(required=False)
     image = serializers.ImageField(required=False)
 
@@ -56,8 +56,8 @@ class AdCreateSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     def is_valid(self, raise_exception=False):
-        self._author_id = self.initial_data.pop('author')
-        self._category_id = self.initial_data.pop('category')
+        self._author_id = self.initial_data.pop('author_id')
+        self._category_id = self.initial_data.pop('category_id')
         return super().is_valid(raise_exception=raise_exception)
 
     def create(self, validated_data):
@@ -75,8 +75,30 @@ class AdCreateSerializer(serializers.ModelSerializer):
 
 
 class AdUpdateSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(read_only=True)
+    image = serializers.ImageField(required=False)
+    author = serializers.PrimaryKeyRelatedField(read_only=True)
+
+    category = serializers.SlugRelatedField(
+        required=False,
+        queryset = Category.objects.all(),
+        slug_field='name'
+    )
+
+    def is_valid(self, raise_exception=False):
+        self._category_id = self.initial_data.pop('category_id')
+        return super().is_valid(raise_exception=raise_exception)
+
+    def save(self):
+        ad = super().save()
+        ad.category = get_object_or_404(Category, pk=self._category_id)
+        ad.save()
+
+        return ad
+
+
     class Meta:
-        model = Selection
+        model = Ad
         fields = '__all__'
 
 
@@ -104,6 +126,8 @@ class AdDetailSerializer(serializers.ModelSerializer):
 
 
 class SelectionCreateSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(required=False)
+
     class Meta:
         model = Selection
         fields = '__all__'

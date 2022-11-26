@@ -75,6 +75,7 @@ class AdListView(ListAPIView):
         return super().get(self, *args, **kwargs)
 
 
+
 class AdCreateView(CreateAPIView):
     """Создание пользователя"""
     queryset = Ad.objects.all()
